@@ -17,6 +17,7 @@ LocalController::LocalController(QObject *parent, MainWindow *mw, Protocol *p) :
 void LocalController::initGuiController()
 {
     connect(m_mainWindow->connectAction()->menu()->actions().at(0), &QAction::triggered, &m_dialog, &QDialog::exec);
+    connect(m_mainWindow->connectAction()->menu()->actions().at(2), &QAction::triggered, this, &LocalController::disconnectFromHost);
     connect(m_mainWindow, &MainWindow::messageSent, this, &LocalController::sendMessage);
 }
 
@@ -28,8 +29,10 @@ void LocalController::addUser(const QString &nickname)
 void LocalController::removeUser(const QString &nickname)
 {
     UserItem *item = reinterpret_cast<UserItem*>(m_mainWindow->listWidget()->takeItem(findItemIndex(nickname)));
+    m_mainWindow->listWidget()->removeItemWidget(item);
     if(item != nullptr)
         delete item;
+    m_mainWindow->listWidget()->sortItems();
 }
 
 void LocalController::swapMsg(QListWidgetItem *item)
@@ -91,7 +94,7 @@ void LocalController::setupAppToChatting()
     connect(m_mainWindow->listWidget(), &QListWidget::currentItemChanged, this, &LocalController::addTab);
     connect(m_mainWindow->tabBar(), &QTabBar::currentChanged, this, &LocalController::changeTabData);
     connect(m_mainWindow->tabBar(), &QTabBar::tabCloseRequested, this, &LocalController::closeTab);
-    dynamic_cast<ServerInfoItem*>(m_mainWindow->listWidget()->currentItem())->setNicknameValid(true);
+    m_serverInfoItem->setNicknameValid(true);
 }
 void LocalController::sendMessage(const QString &message)
 {
@@ -101,7 +104,7 @@ void LocalController::sendMessage(const QString &message)
         return;
     }
     QListWidget *lw = m_mainWindow->listWidget();
-    if(dynamic_cast<ServerInfoItem*>(lw->currentItem()) != nullptr && dynamic_cast<ServerInfoItem*>(lw->currentItem())->isNickNameValid() == false)
+    if(m_serverInfoItem != nullptr && m_serverInfoItem->isNickNameValid() == false)
     {
         if(findItemIndex(message) < 0)
         {
@@ -123,8 +126,10 @@ void LocalController::sendMessage(const QString &message)
 
 void LocalController::initServerInfoItem()
 {
-    m_serverInfoItem = new ServerInfoItem(m_mainWindow->listWidget());
-    m_serverInfoItem->setMessage("");
+    if(m_serverInfoItem == nullptr)
+    {
+        m_serverInfoItem = new ServerInfoItem(m_mainWindow->listWidget());
+    }
     m_serverInfoItem->appendMessage("Connected to: " + m_protocol->socket()->peerName());
     m_serverInfoItem->appendMessage(NEW_LINE);
     m_mainWindow->listWidget()->setCurrentItem(m_serverInfoItem);
@@ -141,6 +146,29 @@ void LocalController::createGlobalChat()
     QString gc = "GLOBAL CHAT";
     addUser(gc);
     reinterpret_cast<UserItem*>(m_mainWindow->listWidget()->item(findItemIndex(gc)))->setGlobalChat(true);
+}
+
+void LocalController::disconnectFromHost()
+{
+    disconnect(m_mainWindow->listWidget(), &QListWidget::currentItemChanged, this, &LocalController::swapMsg);
+    disconnect(m_mainWindow->listWidget(), &QListWidget::currentItemChanged, this, &LocalController::addTab);
+    disconnect(m_mainWindow->tabBar(), &QTabBar::currentChanged, this, &LocalController::changeTabData);
+    disconnect(m_mainWindow->tabBar(), &QTabBar::tabCloseRequested, this, &LocalController::closeTab);
+    m_mainWindow->tabBar()->setCurrentIndex(0);
+    for(int i = 0; i < m_mainWindow->tabBar()->count(); i++)
+    {
+        m_mainWindow->tabBar()->removeTab(i);
+    }
+    m_mainWindow->listWidget()->takeItem(0);
+    m_mainWindow->listWidget()->clear();
+    m_mainWindow->listWidget()->addItem(m_serverInfoItem);
+    m_serverInfoItem->appendMessage("Disconnect from: ");
+    m_serverInfoItem->appendMessage(m_protocol->socket()->peerName());
+    m_serverInfoItem->appendMessage(NEW_LINE);
+    m_mainWindow->chat()->setText(m_serverInfoItem->message());
+    m_mainWindow->listWidget()->setCurrentItem(m_serverInfoItem);
+    m_serverInfoItem->setNicknameValid(false);
+    m_protocol->disconnectFromHost();
 }
 
 //------------------------Network------------------------------------//

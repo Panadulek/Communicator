@@ -8,7 +8,7 @@
 class ServerInfoItem : public QListWidgetItem
 {
     bool m_validNickname = false;
-    QString m_message;
+    QString m_message = "";
 public:
     explicit ServerInfoItem(QListWidget *parent = nullptr);
     bool isNickNameValid(){return m_validNickname;}

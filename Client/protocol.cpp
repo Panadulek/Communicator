@@ -136,3 +136,8 @@ void Protocol::sendGlobalMessage(const QString &message)
         }
     }while(mainHeader.size <= 0);
 }
+
+void Protocol::disconnectFromHost()
+{
+    m_socket->disconnectFromHost();
+}

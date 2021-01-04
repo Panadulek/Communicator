@@ -6,7 +6,6 @@
 #include <QThread>
 #include <QMutex>
 #include <QQueue>
-#include "../Common/networkstring.h"
 #include <QHostAddress>
 class Client : public QThread
 {

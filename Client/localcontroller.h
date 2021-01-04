@@ -16,7 +16,7 @@ class LocalController : public QObject
     MainWindow *m_mainWindow;
     ConnectionDialog m_dialog;
     Protocol *m_protocol;
-    ServerInfoItem *m_serverInfoItem;
+    ServerInfoItem *m_serverInfoItem = nullptr;
     QMessageBox m_msgBox;
     void setDialogLogic();
     int findItemIndex(const QString &);
@@ -40,6 +40,7 @@ private slots:
     void provideConnectionData();
     void updateConnectionInfo();
     void removeUser(const QString &);
+    void disconnectFromHost();
 };
 
 #endif // LOCALCONTROLLER_H

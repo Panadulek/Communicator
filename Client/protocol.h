@@ -18,6 +18,7 @@ public:
     ~Protocol();
     const QTcpSocket* socket(){return m_socket;}
     void connectToHost(const QString &, const QString &);
+    void disconnectFromHost();
 private slots:
     void read();
 public slots:
