@@ -25,7 +25,7 @@ public slots:
     void sendNicknameMessage(const QString &);
     void sendGlobalMessage(const QString &);
 signals:
-    void globalMessage(const QString &message, const QString &user);
+    void globalMessage(QString &message, QString &user);
     void userJoined(const QString &nickname);
     void userDisconnected(const QString &nickname);
 };

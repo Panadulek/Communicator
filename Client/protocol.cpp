@@ -39,13 +39,15 @@ void Protocol::readData(size_t sizeToRead, QString &message)
         {
             m_socket->read(m_messageBuffer, PROTOCOL_MAX_BUFFER);
             sizeToRead -= PROTOCOL_MAX_BUFFER;
-            message += m_messageBuffer;
+            message += QString(QByteArray(m_messageBuffer, PROTOCOL_MAX_BUFFER));
         }
         else
         {
             m_socket->read(m_messageBuffer, sizeToRead);
+            if(sizeToRead != PROTOCOL_MAX_BUFFER - 1)
+                m_messageBuffer[sizeToRead] = '\0';
+            message += QString(QByteArray(m_messageBuffer, sizeToRead));
             sizeToRead -= sizeToRead;
-            message += m_messageBuffer;
         }
     }
 
@@ -64,7 +66,8 @@ void Protocol::read()
                 m_socket->read(m_nameBuffer, USER_NAME_SIZE);
                 mainHeader.size -= USER_NAME_SIZE;
                 readData(mainHeader.size, data);
-                emit globalMessage(data, m_nameBuffer);
+                QString name = m_nameBuffer;
+                emit globalMessage(data, name);
                 m_nameBuffer[0] = '\0';
                 data.clear();
             }
@@ -124,17 +127,9 @@ void Protocol::sendGlobalMessage(const QString &message)
     mainHeader.version = PROTOCOL_VERSION;
     QString messageParsed = "";
     m_socket->write(reinterpret_cast<char*>(&mainHeader), sizeof(MainHeader));
-    do
-    {
-        if(mainHeader.size > PROTOCOL_MAX_BUFFER)
-        {
-
-        }
-        else
-        {
-            m_socket->write(message.toStdString().c_str(), mainHeader.size);
-        }
-    }while(mainHeader.size <= 0);
+    m_socket->waitForBytesWritten();
+    m_socket->write(message.toStdString().c_str());
+    m_socket->waitForBytesWritten();
 }
 
 void Protocol::disconnectFromHost()

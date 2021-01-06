@@ -16,6 +16,7 @@ private:
     QMutex m_locker;
     char m_name[USER_NAME_SIZE];
     qintptr m_handle;
+    bool m_valid = false;
     QQueue<QByteArray> m_queue;
     void run() override;
 
@@ -26,6 +27,7 @@ public:
     Client(qintptr handle);
     ~Client();
     qintptr handle();
+    bool isValid(){return m_valid;}
     const char* name();
     void addToQueue(const QByteArray &data);
 };

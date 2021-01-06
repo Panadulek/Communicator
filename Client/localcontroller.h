@@ -25,6 +25,8 @@ class LocalController : public QObject
     void initServerInfoItem();
     void createGlobalChat();
     void setupAppToChatting();
+    void initChatMessages();
+    QString parseMessage(const QString &, const QString &, const QString &);
 public:
     explicit LocalController(QObject *parent = nullptr, MainWindow *mw = nullptr, Protocol *p = nullptr);
 signals:
@@ -41,6 +43,7 @@ private slots:
     void updateConnectionInfo();
     void removeUser(const QString &);
     void disconnectFromHost();
+    void displayGlobalMessage(QString &, QString &);
 };
 
 #endif // LOCALCONTROLLER_H

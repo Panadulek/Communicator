@@ -70,6 +70,7 @@ void Client::run()
             if(mainHeader.typeMessage == MessageType::NewConnection)
             {
                 m_socket->read(m_name, USER_NAME_SIZE);
+                m_valid = true;
                 ClientControler::instance()->sendToAll((char*)&mainHeader, sizeof(MainHeader), false, m_handle);
                 ClientControler::instance()->sendToAll(m_name, USER_NAME_SIZE, false, m_handle);
             }

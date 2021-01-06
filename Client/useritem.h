@@ -2,6 +2,10 @@
 #define USER_ITEM_H
 #include <QListWidgetItem>
 #include <QString>
+
+#define GLOBAL_ITEM 1
+#define MY_ITEM 2
+
 class UserItem : public QListWidgetItem
 {
 private:
@@ -19,6 +23,8 @@ public:
         m_message.append(msg);
 	}
     void setGlobalChat(bool ok = true){m_isGlobal = ok;}
+    bool isGlobalChat() const {return m_isGlobal;}
+    bool operator<(const QListWidgetItem &other) const override;
 };
 
 #endif

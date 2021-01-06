@@ -2,7 +2,7 @@
 #include <QListWidget>
 #include <QTextEdit>
 #include <QTabBar>
-
+#include <QScrollBar>
 LocalController::LocalController(QObject *parent, MainWindow *mw, Protocol *p) : QObject(parent), m_mainWindow(mw), m_protocol(p)
 {
     m_msgBox.addButton(QMessageBox::StandardButton::Ok);
@@ -21,10 +21,23 @@ void LocalController::initGuiController()
     connect(m_mainWindow, &MainWindow::messageSent, this, &LocalController::sendMessage);
 }
 
+void LocalController::initChatMessages()
+{
+    connect(m_protocol, &Protocol::globalMessage, this, &LocalController::displayGlobalMessage);
+}
 void LocalController::addUser(const QString &nickname)
 {
+    if(nickname.isEmpty())
+        return;
     UserItem *item = new UserItem(nickname);
     m_mainWindow->listWidget()->addItem(item);
+    if(nickname == m_serverInfoItem->myNickname())
+    {
+        QFont font;
+        font.setWeight(QFont::Bold);
+        item->setFont(font);
+    }
+    m_mainWindow->listWidget()->sortItems(Qt::SortOrder::DescendingOrder);
 }
 void LocalController::removeUser(const QString &nickname)
 {
@@ -32,7 +45,7 @@ void LocalController::removeUser(const QString &nickname)
     m_mainWindow->listWidget()->removeItemWidget(item);
     if(item != nullptr)
         delete item;
-    m_mainWindow->listWidget()->sortItems();
+    m_mainWindow->listWidget()->sortItems(Qt::SortOrder::DescendingOrder);
 }
 
 void LocalController::swapMsg(QListWidgetItem *item)
@@ -95,6 +108,8 @@ void LocalController::setupAppToChatting()
     connect(m_mainWindow->tabBar(), &QTabBar::currentChanged, this, &LocalController::changeTabData);
     connect(m_mainWindow->tabBar(), &QTabBar::tabCloseRequested, this, &LocalController::closeTab);
     m_serverInfoItem->setNicknameValid(true);
+    m_mainWindow->listWidget()->setCurrentRow(GLOBAL_ITEM);
+    initChatMessages();
 }
 void LocalController::sendMessage(const QString &message)
 {
@@ -109,6 +124,7 @@ void LocalController::sendMessage(const QString &message)
         if(findItemIndex(message) < 0)
         {
             emit nicknameSetted(message);
+            m_serverInfoItem->setNickname(message);
             setupAppToChatting();
         }
         else
@@ -116,19 +132,19 @@ void LocalController::sendMessage(const QString &message)
             m_serverInfoItem->appendMessage("Nickname is reapeted");
         }
     }
-    else
+    else if(lw->currentRow() == GLOBAL_ITEM)
     {
-        reinterpret_cast<UserItem*>(lw->currentItem())->appendMessage(message);
-        reinterpret_cast<UserItem*>(lw->currentItem())->appendMessage(NEW_LINE);
-        m_mainWindow->chat()->setHtml(reinterpret_cast<UserItem*>(lw->currentItem())->message());
+        m_protocol->sendGlobalMessage(message);
     }
+    m_mainWindow->senderWidget()->lineEdit()->clear();
 }
 
 void LocalController::initServerInfoItem()
 {
     if(m_serverInfoItem == nullptr)
     {
-        m_serverInfoItem = new ServerInfoItem(m_mainWindow->listWidget());
+        m_serverInfoItem = ServerInfoItem::instance();
+        m_mainWindow->listWidget()->addItem(m_serverInfoItem);
     }
     m_serverInfoItem->appendMessage("Connected to: " + m_protocol->socket()->peerName());
     m_serverInfoItem->appendMessage(NEW_LINE);
@@ -211,5 +227,46 @@ void LocalController::updateConnectionInfo()
     if(dynamic_cast<ServerInfoItem*>(m_mainWindow->listWidget()->currentItem()) == nullptr)
     {
         m_msgBox.exec();
+    }
+}
+
+QString LocalController::parseMessage(const QString &message, const QString &src, const QString &color = "")
+{
+    QString parsedMessage = "";
+    if(!color.isEmpty())
+    {
+        parsedMessage += "<font color=\"";
+        parsedMessage += color;
+        parsedMessage += "\">";
+        parsedMessage += src;
+        parsedMessage += ":";
+        parsedMessage += NEW_LINE;
+        parsedMessage += message;
+        parsedMessage += "</font>";
+    }
+    else
+    {
+        parsedMessage += src;
+        parsedMessage += ":";
+        parsedMessage += NEW_LINE;
+        parsedMessage += message;
+    }
+    parsedMessage += NEW_LINE;
+    parsedMessage += NEW_LINE;
+    return parsedMessage;
+}
+void LocalController::displayGlobalMessage(QString &message, QString &src)
+{
+    int idx = findItemIndex(src);
+    if(idx == MY_ITEM)
+        message = parseMessage(message, src, "#0000FF");
+    else
+        message = parseMessage(message, src);
+    UserItem* item = reinterpret_cast<UserItem*>(m_mainWindow->listWidget()->item(GLOBAL_ITEM));
+    item->appendMessage(message);
+    if(item == m_mainWindow->listWidget()->currentItem())
+    {
+       m_mainWindow->chat()->setHtml(item->message());
+       m_mainWindow->chat()->verticalScrollBar()->setValue(m_mainWindow->chat()->verticalScrollBar()->maximum());
     }
 }
