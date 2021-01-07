@@ -12,7 +12,11 @@ bool UserItem::operator<(const QListWidgetItem &other) const
         return false;
     else if(this->isGlobalChat())
         return false;
+    else if(reinterpret_cast<UserItem*>(const_cast<QListWidgetItem*>(&other))->isGlobalChat())
+        return true;
     else if(other.text() == ServerInfoItem::instance()->myNickname())
         return true;
+    else if(this->text() == ServerInfoItem::instance()->myNickname())
+        return false;
     return QListWidgetItem::operator<(other);
 }

@@ -12,6 +12,8 @@ LocalController::LocalController(QObject *parent, MainWindow *mw, Protocol *p) :
     connect(m_protocol, &Protocol::userJoined, this, &LocalController::addUser);
     connect(m_protocol, &Protocol::userDisconnected, this, &LocalController::removeUser);
     connect(this, &LocalController::nicknameSetted, m_protocol, &Protocol::sendNicknameMessage);
+    connect(this, &LocalController::newMessage, this, &LocalController::signalNewMessage);
+    connect(m_mainWindow->tabBar(), &QTabBar::currentChanged, this, &LocalController::readChat);
 }
 
 void LocalController::initGuiController()
@@ -24,6 +26,7 @@ void LocalController::initGuiController()
 void LocalController::initChatMessages()
 {
     connect(m_protocol, &Protocol::globalMessage, this, &LocalController::displayGlobalMessage);
+    connect(m_protocol, &Protocol::privateMessage, this, &LocalController::displayPrivateMessage);
 }
 void LocalController::addUser(const QString &nickname)
 {
@@ -135,6 +138,10 @@ void LocalController::sendMessage(const QString &message)
     else if(lw->currentRow() == GLOBAL_ITEM)
     {
         m_protocol->sendGlobalMessage(message);
+    }
+    else if(lw->currentRow() >= MY_ITEM)
+    {
+        m_protocol->sendPrivateMessage(message, lw->currentItem()->text());
     }
     m_mainWindow->senderWidget()->lineEdit()->clear();
 }
@@ -269,4 +276,49 @@ void LocalController::displayGlobalMessage(QString &message, QString &src)
        m_mainWindow->chat()->setHtml(item->message());
        m_mainWindow->chat()->verticalScrollBar()->setValue(m_mainWindow->chat()->verticalScrollBar()->maximum());
     }
+    else
+    {
+        emit newMessage(item->text());
+    }
+}
+
+void LocalController::displayPrivateMessage(QString &message, QString &src, QString &target)
+{
+    int idxTarget = findItemIndex((src == m_serverInfoItem->myNickname()) ? target : src);
+    int idxSrc = findItemIndex(src);
+    UserItem *targetItem = reinterpret_cast<UserItem*>(m_mainWindow->listWidget()->item(idxTarget));
+    if(idxSrc == MY_ITEM)
+    {
+        message = parseMessage(message, src, "#006600");
+    }
+    else
+        message = parseMessage(message, src);
+    targetItem->appendMessage(message);
+    if(m_mainWindow->listWidget()->currentItem() == targetItem)
+    {
+        m_mainWindow->chat()->setHtml(targetItem->message());
+        m_mainWindow->chat()->verticalScrollBar()->setValue(m_mainWindow->chat()->verticalScrollBar()->maximum());
+    }
+    else
+    {
+        emit newMessage(targetItem->text());
+    }
+}
+
+void LocalController::signalNewMessage(const QString &tabName)
+{
+    int itemIdx = findItemIndex(tabName);
+    QListWidget *lw = m_mainWindow->listWidget();
+    if(itemIdx != lw->currentRow())
+    {
+        QListWidgetItem *it = lw->currentItem();
+        lw->setCurrentRow(itemIdx);
+        QTabBar *tb = m_mainWindow->tabBar();
+        tb->setTabTextColor(tb->currentIndex(), QColor(0, 102, 0));
+        lw->setCurrentItem(it);
+    }
+}
+void LocalController::readChat()
+{
+    m_mainWindow->tabBar()->setTabTextColor(m_mainWindow->tabBar()->currentIndex(), QColor(0, 0, 0));
 }

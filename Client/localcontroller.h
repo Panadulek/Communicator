@@ -31,7 +31,7 @@ public:
     explicit LocalController(QObject *parent = nullptr, MainWindow *mw = nullptr, Protocol *p = nullptr);
 signals:
 void nicknameSetted(const QString &);
-
+void newMessage(const QString &);
 private slots:
 	void swapMsg(QListWidgetItem*);
 	void addTab(QListWidgetItem*);
@@ -44,6 +44,9 @@ private slots:
     void removeUser(const QString &);
     void disconnectFromHost();
     void displayGlobalMessage(QString &, QString &);
+    void displayPrivateMessage(QString &, QString &, QString &);
+    void signalNewMessage(const QString &);
+    void readChat();
 };
 
 #endif // LOCALCONTROLLER_H

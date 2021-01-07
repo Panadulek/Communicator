@@ -72,7 +72,21 @@ void Protocol::read()
                 data.clear();
             }
         }
-
+        else if(mainHeader.typeMessage == MessageType::PrivateMessageType)
+        {
+            if(waitForData(mainHeader.size))
+            {
+                char targetBuffer[USER_NAME_SIZE];
+                m_socket->read(targetBuffer, USER_NAME_SIZE);
+                mainHeader.size -= USER_NAME_SIZE;
+                m_socket->read(m_nameBuffer, USER_NAME_SIZE);
+                mainHeader.size -= USER_NAME_SIZE;
+                readData(mainHeader.size, data);
+                QString name = m_nameBuffer;
+                QString target = targetBuffer;
+                emit privateMessage(data, name, target);
+            }
+        }
         else if(mainHeader.typeMessage == MessageType::Connected)
         {
             if(waitForData(mainHeader.size))
@@ -125,8 +139,23 @@ void Protocol::sendGlobalMessage(const QString &message)
     mainHeader.typeMessage = MessageType::SimpleMessageType;
     mainHeader.size += message.size();
     mainHeader.version = PROTOCOL_VERSION;
-    QString messageParsed = "";
     m_socket->write(reinterpret_cast<char*>(&mainHeader), sizeof(MainHeader));
+    m_socket->waitForBytesWritten();
+    m_socket->write(message.toStdString().c_str());
+    m_socket->waitForBytesWritten();
+}
+
+void Protocol::sendPrivateMessage(const QString &message, const QString &name)
+{
+    MainHeader mainHeader;
+    mainHeader.size = 0;
+    mainHeader.typeMessage = MessageType::PrivateMessageType;
+    mainHeader.size += USER_NAME_SIZE;
+    mainHeader.size += message.size();
+    mainHeader.version = PROTOCOL_VERSION;
+    m_socket->write(reinterpret_cast<char*>(&mainHeader), sizeof(MainHeader));
+    m_socket->waitForBytesWritten();
+    m_socket->write(name.toStdString().c_str(), USER_NAME_SIZE);
     m_socket->waitForBytesWritten();
     m_socket->write(message.toStdString().c_str());
     m_socket->waitForBytesWritten();

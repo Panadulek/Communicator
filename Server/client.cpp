@@ -60,6 +60,7 @@ void Client::run()
             QByteArray data = m_queue.dequeue();
             std::string str = data.toStdString();
             m_socket->write(str.c_str(), data.size());
+            m_socket->waitForBytesWritten(100);
             m_socket->flush();
 
         }
@@ -70,6 +71,7 @@ void Client::run()
             if(mainHeader.typeMessage == MessageType::NewConnection)
             {
                 m_socket->read(m_name, USER_NAME_SIZE);
+                m_name[USER_NAME_SIZE - 1] = '\0';
                 m_valid = true;
                 ClientControler::instance()->sendToAll((char*)&mainHeader, sizeof(MainHeader), false, m_handle);
                 ClientControler::instance()->sendToAll(m_name, USER_NAME_SIZE, false, m_handle);
@@ -82,8 +84,9 @@ void Client::run()
                     ClientControler::instance()->sendToAll((char*)&mainHeader, sizeof(MainHeader));
                     ClientControler::instance()->sendToAll(m_name, USER_NAME_SIZE);
                     mainHeader.size -= USER_NAME_SIZE;
-                    char *message = new char[mainHeader.size];
+                    char *message = new char[mainHeader.size + 1];
                     m_socket->read(message, mainHeader.size);
+                    message[mainHeader.size] = '\0';
                     ClientControler::instance()->sendToAll(message, mainHeader.size);
                     delete[] message;
                 }
@@ -92,24 +95,33 @@ void Client::run()
             {
                 char targetName[USER_NAME_SIZE];
                 constexpr int amountTargets = 2;
-                char* message = new char[mainHeader.size - USER_NAME_SIZE];
+                char *message = nullptr;
                 if(waitForData(mainHeader.size))
                 {
                     m_socket->read(targetName, USER_NAME_SIZE);
-                    m_socket->read(message, (mainHeader.size - USER_NAME_SIZE));
+                    targetName[USER_NAME_SIZE - 1] = '\0';
+                    mainHeader.size -= USER_NAME_SIZE;
+                    message = new char[mainHeader.size + 1];
+                    m_socket->read(message, mainHeader.size);
+                    message[mainHeader.size] = '\0';
                 }
-                message[strlen(message) + 1] = '\0';
                 char *targets[amountTargets];
                 targets[0] = targetName;
                 targets[1] = m_name;
                 mainHeader.size += USER_NAME_SIZE;
-                ClientControler::instance()->sendMsg((char*)&mainHeader, sizeof(mainHeader), targets, amountTargets);
-                ClientControler::instance()->sendMsg(targetName, USER_NAME_SIZE, targets, amountTargets);
+                mainHeader.size += USER_NAME_SIZE;
+                ClientControler::instance()->sendPrivate((char*)&mainHeader, sizeof(MainHeader), m_name);
+                ClientControler::instance()->sendPrivate((char*)&mainHeader, sizeof(MainHeader), targetName);
+                ClientControler::instance()->sendPrivate(targetName, USER_NAME_SIZE, m_name);
+                ClientControler::instance()->sendPrivate(targetName, USER_NAME_SIZE, targetName);
+                ClientControler::instance()->sendPrivate(m_name, USER_NAME_SIZE, m_name);
+                ClientControler::instance()->sendPrivate(m_name, USER_NAME_SIZE, targetName);
                 mainHeader.size -= USER_NAME_SIZE;
-                ClientControler::instance()->sendMsg(m_name, USER_NAME_SIZE,targets, amountTargets);
                 mainHeader.size -= USER_NAME_SIZE;
-                ClientControler::instance()->sendMsg(message, mainHeader.size, targets, amountTargets);
-                delete [] message;
+                ClientControler::instance()->sendPrivate(message, mainHeader.size, m_name);
+                ClientControler::instance()->sendPrivate(message, mainHeader.size, targetName);
+                if(message != nullptr)
+                    delete [] message;
             }
 
             else if(mainHeader.typeMessage == MessageType::FileRequest)
